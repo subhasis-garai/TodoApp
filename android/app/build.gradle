@@ -1,8 +1,7 @@
 apply plugin: "com.android.application"
 apply plugin: "org.jetbrains.kotlin.android"
 apply plugin: "com.facebook.react"
-import groovy.json.JsonSlurper
-import javax.xml.parsers.DocumentBuilderFactory
+apply from: file("../../node_modules/react-native-vector-icons/fonts.gradle")
 
 /**
  * This is the configuration block to customize your React Native Android app.
@@ -51,7 +50,7 @@ react {
     //
     //   The list of flags to pass to the Hermes compiler. By default is "-O", "-output-source-map"
     // hermesFlags = ["-O", "-output-source-map"]
-
+    entryFile = file("../../index.ts") 
     /* Autolinking */
     autolinkLibrariesWithApp()
 }
@@ -74,12 +73,45 @@ def enableProguardInReleaseBuilds = false
  */
 def jscFlavor = 'io.github.react-native-community:jsc-android:2026004.+'
 
-react {
-    entryFile = file("../../index.ts") 
-    autolinkLibrariesWithApp()
+project.ext.vectoricons = [
+    iconFontNames: [ 'MaterialIcons.ttf', 'EvilIcons.ttf' ] // Specify font files
+]
+
+def getAppName(project) {
+    def defaultAppName = "MyApp" // Fallback app name
+
+    // Try reading from app.json
+    try {
+        def appJson = project.file("app.json")
+        if (appJson.exists()) {
+            def parsedJson = new groovy.json.JsonSlurper().parse(appJson)
+            def appName = parsedJson.displayName ?: parsedJson.name ?: defaultAppName
+            return appName.replaceAll("\\s+", "") // Remove spaces once
+        }
+    } catch (Exception e) {
+        project.logger.warn("Falling back to strings.xml due to: ${e.message}")
+    }
+
+    // Fallback to strings.xml
+    try {
+        def stringsFile = project.file("src/main/res/values/strings.xml")
+        if (stringsFile.exists()) {
+            // Use a simpler regex-based approach instead of XML parsing
+            def content = stringsFile.text
+            def match = content =~ /<string name="app_name">(.+?)<\/string>/
+            if (match.find()) {
+                return match.group(1).replaceAll("\\s+", "") // Extract app_name and remove spaces
+            }
+        }
+    } catch (Exception e) {
+        project.logger.warn("Failed to parse strings.xml: ${e.message}")
+    }
+
+    return defaultAppName.replaceAll("\\s+", "")
 }
 
-
+// Compute appName once at configuration time
+def computedAppName = getAppName(project)
 
 android {
     ndkVersion rootProject.ext.ndkVersion
@@ -98,58 +130,32 @@ android {
         abi {
             enable true
             reset()
-            include 'armeabi-v7a', 'arm64-v8a', 'x86', 'x86_64'
+            include 'armeabi-v7a', 'arm64-v8a', 'x86_64', 'x86'
             universalApk false  // Set to true if you also want one universal APK
         }
     }
-    // Optional: Customize APK names
     // applicationVariants.all { variant ->
-    //     variant.outputs.each { output ->
-    //     def outputFileName = "TodoApp-${variant.name}.apk"
-    //         def abi = output.getFilter(com.android.build.OutputFile.ABI)
-    //         if (abi != null) {
-    //             output.outputFileName = "${variant.name}-${abi}.apk"
+    //     variant.outputs.all { output ->
+    //         // Use variant.versionName directly (no need for fallback)
+    //         def versionName = variant.versionName
+
+    //         // Only rename for release builds
+    //         if (variant.buildType.name == "release") {
+    //             output.outputFileName = "${computedAppName}-v${versionName}-${variant.name}.apk"
     //         }
     //     }
     // }
+    // Optional: Customize APK names
     applicationVariants.all { variant ->
-        variant.outputs.all { output ->
-            def appName = "MyApp"
-            def versionName = variant.versionName ?: "1.0"
-
-            try {
-                def appJson = rootProject.file("app.json")
-                if (appJson.exists()) {
-                    def parsedJson = new JsonSlurper().parse(appJson)
-                    appName = (parsedJson.displayName ?: parsedJson.name ?: appName).replaceAll("\\s+", "")
-                } else {
-                    throw new FileNotFoundException("app.json not found")
-                }
-            } catch (Exception e) {
-                println "Falling back to strings.xml due to: ${e.message}"
-                try {
-                    def stringsFile = file("src/main/res/values/strings.xml")
-                    if (stringsFile.exists()) {
-                        def doc = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(stringsFile)
-                        def strings = doc.getElementsByTagName("string")
-                        for (int i = 0; i < strings.length; i++) {
-                            def node = strings.item(i)
-                            if (node.getAttribute("name") == "app_name") {
-                                appName = node.getTextContent().replaceAll("\\s+", "")
-                                break
-                            }
-                        }
-                    }
-                } catch (Exception ex) {
-                    println "Failed to parse strings.xml: ${ex.message}"
-                }
-            }
-
-            if (variant.buildType.name == "release") {
-                output.outputFileName = "${appName}-v${versionName}-${variant.name}.apk"
+        variant.outputs.each { output ->
+        def outputFileName = "${computedAppName}-${variant.name}.apk"
+            def abi = output.getFilter(com.android.build.OutputFile.ABI)
+            if (abi != null) {
+                output.outputFileName = "${computedAppName}-${abi}.apk"
             }
         }
     }
+    
     signingConfigs {
         debug {
             storeFile file('debug.keystore')
@@ -169,6 +175,18 @@ android {
             minifyEnabled enableProguardInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
         }
+    }
+
+    packagingOptions {
+        exclude 'META-INF/com/android/build/gradle/app-metadata.properties'
+    }
+
+    lintOptions {
+        disable 'Deprecation'
+    }
+    kotlinOptions {
+        jvmTarget = "17"
+        freeCompilerArgs += ["-opt-in=kotlin.RequiresOptIn"] 
     }
 }
 

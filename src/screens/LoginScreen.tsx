@@ -1,11 +1,12 @@
-// This code is a React Native login screen component that uses hooks for state management. It includes a custom status bar, input fields for username and password, and a button to submit the login form. If the credentials are incorrect, an error message is displayed. The component also uses a custom hook for authentication logic.
-// The styles are defined using StyleSheet for better performance and readability. The component is designed to be responsive and user-friendly, with clear error handling and input validation.
-
+// screens/LoginScreen.tsx
 import React, { useState } from 'react';
-import { View, TextInput, Button, StyleSheet, Text } from 'react-native';
+import { View, TextInput, TouchableOpacity, Text, StyleSheet } from 'react-native';
 import { useAuth } from '../hooks/useAuth';
 import CustomStatusBar from '../components/CustomStatusBar';
 import { AUTH_CREDENTIALS } from '../constants/auth';
+import colors from '../constants/colors';
+import typography from '../constants/typography';
+import AppIcon from '../components/Icon';
 
 const LoginScreen: React.FC = () => {
   const { login } = useAuth();
@@ -24,7 +25,7 @@ const LoginScreen: React.FC = () => {
 
   return (
     <>
-      <CustomStatusBar backgroundColor="#1e90ff" barStyle="light-content" />
+      <CustomStatusBar backgroundColor={colors.primary} barStyle="light-content" />
       <View style={styles.container}>
         <TextInput
           placeholder="Username"
@@ -34,6 +35,7 @@ const LoginScreen: React.FC = () => {
             setError('');
           }}
           style={styles.input}
+          placeholderTextColor={colors.black}
         />
         <TextInput
           placeholder="Password"
@@ -44,18 +46,62 @@ const LoginScreen: React.FC = () => {
             setError('');
           }}
           style={styles.input}
+          placeholderTextColor={colors.black}
         />
-        {error !== '' && <Text style={styles.error}>{error}</Text>}
-        <Button title="Login" onPress={handleLogin} />
+        {error !== '' && (
+          <View style={styles.errorContainer}>
+            <AppIcon name="error" size={20} color={colors.danger} />
+            <Text style={styles.error}>{error}</Text>
+          </View>
+        )}
+        <TouchableOpacity onPress={handleLogin} style={styles.loginButton}>
+          <Text style={styles.loginButtonText}>Login</Text>
+        </TouchableOpacity>
       </View>
     </>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: 'center', padding: 20 },
-  input: { borderWidth: 1, marginBottom: 10, padding: 10, borderColor: '#ccc', borderRadius: 5 },
-  error: { color: 'red', marginBottom: 10, textAlign: 'center' },
+  container: {
+    flex: 1,
+    justifyContent: 'center',
+    padding: 20,
+    backgroundColor: colors.lightGray,
+  },
+  input: {
+    borderWidth: 1,
+    marginBottom: 15,
+    padding: 12,
+    borderColor: colors.gray,
+    borderRadius: 5,
+    fontFamily: typography.caption.fontFamily,  // Use your custom font family if needed
+    fontSize: 16,
+    color: colors.textPrimary,
+  },
+  errorContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  error: {
+    color: colors.danger,
+    marginLeft: 10,
+    fontFamily: typography.heading.fontFamily,  // Use your custom font family if needed
+    fontSize: 14,
+  },
+  loginButton: {
+    backgroundColor: colors.primary,
+    paddingVertical: 12,
+    borderRadius: 5,
+    alignItems: 'center',
+    marginTop: 20,
+  },
+  loginButtonText: {
+    fontSize: 18,
+    fontFamily: typography.heading.fontFamily,  // Reference typography constants
+    color: colors.white,
+  },
 });
 
 export default LoginScreen;
